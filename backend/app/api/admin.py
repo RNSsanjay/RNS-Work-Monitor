@@ -17,7 +17,11 @@ async def get_all_users(
     """Get all users in the system"""
     users_collection = get_collection("users")
     
-    query = {}
+    query = {
+        "role": {"$in": ["admin", "manager", "employee"]},
+        "username": {"$exists": True},
+        "full_name": {"$exists": True}
+    }
     if role:
         query["role"] = role
     
@@ -25,8 +29,12 @@ async def get_all_users(
     
     users = []
     async for user in cursor:
-        user["id"] = str(user["_id"])
-        users.append(UserResponse(**user))
+        try:
+            user["id"] = str(user["_id"])
+            users.append(UserResponse(**user))
+        except Exception as e:
+            print(f"Skipping invalid user {user.get('_id')}: {e}")
+            continue
     
     return users
 
@@ -82,15 +90,15 @@ async def get_all_work_hours(
     result = []
     for uid, sessions in user_sessions.items():
         user = await users_collection.find_one({"_id": ObjectId(uid)})
-        if not user:
+        if not user or "full_name" not in user or "role" not in user:
             continue
         
         total_active_seconds = sum(s.get("total_active_time", 0) for s in sessions)
         
         result.append({
             "user_id": uid,
-            "user_name": user["full_name"],
-            "role": user["role"],
+            "user_name": user.get("full_name", "Unknown"),
+            "role": user.get("role", "employee"),
             "date": date,
             "total_active_hours": round(total_active_seconds / 3600, 2),
             "shift_start": user.get("shift_start"),
@@ -161,12 +169,12 @@ async def get_calendar_data(
     result = []
     for key, data in calendar_data.items():
         user = await users_collection.find_one({"_id": ObjectId(data["user_id"])})
-        if user:
+        if user and "full_name" in user and "role" in user:
             result.append({
                 "date": data["date"],
                 "user_id": data["user_id"],
-                "user_name": user["full_name"],
-                "role": user["role"],
+                "user_name": user.get("full_name", "Unknown"),
+                "role": user.get("role", "employee"),
                 "total_hours": round(data["total_active_seconds"] / 3600, 2),
                 "sessions": data["sessions"]
             })
