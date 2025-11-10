@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Webcam from 'react-webcam';
-import { Camera, CameraOff, Play, Square, Eye, EyeOff, Clock } from 'lucide-react';
+import { Camera, CameraOff, Play, Square, Eye, EyeOff, Clock, Zap, AlertCircle } from 'lucide-react';
 import { sessionAPI, faceAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
@@ -48,7 +48,7 @@ export default function CameraMonitor() {
       setActiveSession(response.data);
       setIsMonitoring(true);
       startFrameCapture();
-      toast.success('Monitoring started!');
+      toast.success('Monitoring started! 🎉');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to start session');
     }
@@ -62,14 +62,13 @@ export default function CameraMonitor() {
       setIsMonitoring(false);
       setActiveSession(null);
       stopFrameCapture();
-      toast.success('Session ended!');
+      toast.success('Session ended successfully! ✓');
     } catch (error) {
       toast.error('Failed to end session');
     }
   };
 
   const startFrameCapture = () => {
-    // Capture frame every 2 seconds
     intervalRef.current = setInterval(() => {
       captureAndProcessFrame();
     }, 2000);
@@ -89,7 +88,6 @@ export default function CameraMonitor() {
       const imageSrc = webcamRef.current.getScreenshot();
       if (!imageSrc) return;
 
-      // Convert base64 to blob
       const blob = await fetch(imageSrc).then(r => r.blob());
       const formData = new FormData();
       formData.append('file', blob, 'frame.jpg');
@@ -121,27 +119,34 @@ export default function CameraMonitor() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getProgressPercentage = () => {
+    return Math.min((monitoringStatus.current_window_time / 300) * 100, 100);
+  };
+
   return (
     <div className="space-y-6">
       {/* Control Panel */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Camera Monitor</h2>
+      <div className="card animate-scale-in">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <div>
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-1">Camera Monitor</h2>
+            <p className="text-gray-600 font-medium">Real-time face and eye detection</p>
+          </div>
           <div className="flex space-x-3">
             {!isMonitoring ? (
               <button
                 onClick={startSession}
-                className="btn btn-primary flex items-center space-x-2"
+                className="btn btn-success flex items-center space-x-2 shadow-lg"
               >
-                <Play size={20} />
+                <Play size={22} />
                 <span>Start Monitoring</span>
               </button>
             ) : (
               <button
                 onClick={endSession}
-                className="btn btn-danger flex items-center space-x-2"
+                className="btn btn-danger flex items-center space-x-2 shadow-lg"
               >
-                <Square size={20} />
+                <Square size={22} />
                 <span>End Session</span>
               </button>
             )}
@@ -150,50 +155,68 @@ export default function CameraMonitor() {
 
         {/* Status Indicators */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Status</span>
-              {isMonitoring ? (
-                <Camera className="text-green-500" size={20} />
-              ) : (
-                <CameraOff className="text-gray-400" size={20} />
-              )}
+          <div className={`p-5 rounded-2xl transition-all duration-300 ${
+            isMonitoring 
+              ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300' 
+              : 'bg-gray-50 border-2 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-700">Status</span>
+              <div className={`p-2 rounded-xl ${isMonitoring ? 'bg-green-500' : 'bg-gray-400'}`}>
+                {isMonitoring ? (
+                  <Camera className="text-white" size={20} />
+                ) : (
+                  <CameraOff className="text-white" size={20} />
+                )}
+              </div>
             </div>
-            <p className="text-lg font-semibold">
-              {isMonitoring ? 'Monitoring' : 'Inactive'}
+            <p className={`text-xl font-extrabold ${isMonitoring ? 'text-green-700' : 'text-gray-600'}`}>
+              {isMonitoring ? 'Active' : 'Inactive'}
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Face</span>
-              <div className={`w-3 h-3 rounded-full ${detectionData.face_detected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <div className={`p-5 rounded-2xl transition-all duration-300 ${
+            detectionData.face_detected 
+              ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300' 
+              : 'bg-gray-50 border-2 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-700">Face</span>
+              <div className={`w-4 h-4 rounded-full ${detectionData.face_detected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
             </div>
-            <p className="text-lg font-semibold">
+            <p className={`text-xl font-extrabold ${detectionData.face_detected ? 'text-blue-700' : 'text-gray-600'}`}>
               {detectionData.face_detected ? 'Detected' : 'Not Found'}
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Eyes</span>
-              {detectionData.eyes_detected ? (
-                <Eye className="text-green-500" size={20} />
-              ) : (
-                <EyeOff className="text-red-500" size={20} />
-              )}
+          <div className={`p-5 rounded-2xl transition-all duration-300 ${
+            detectionData.eyes_detected 
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-300' 
+              : 'bg-gray-50 border-2 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-700">Eyes</span>
+              <div className={`p-2 rounded-xl ${detectionData.eyes_detected ? 'bg-purple-500' : 'bg-gray-400'}`}>
+                {detectionData.eyes_detected ? (
+                  <Eye className="text-white" size={20} />
+                ) : (
+                  <EyeOff className="text-white" size={20} />
+                )}
+              </div>
             </div>
-            <p className="text-lg font-semibold">
+            <p className={`text-xl font-extrabold ${detectionData.eyes_detected ? 'text-purple-700' : 'text-gray-600'}`}>
               {detectionData.eyes_detected ? 'Detected' : 'Not Found'}
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Active Time</span>
-              <Clock className="text-primary-500" size={20} />
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-700">Active Time</span>
+              <div className="p-2 rounded-xl bg-orange-500">
+                <Clock className="text-white" size={20} />
+              </div>
             </div>
-            <p className="text-lg font-semibold">
+            <p className="text-xl font-extrabold text-orange-700">
               {formatTime(monitoringStatus.active_time)}
             </p>
           </div>
@@ -201,28 +224,49 @@ export default function CameraMonitor() {
 
         {/* Eye Detection Window Progress */}
         {isMonitoring && (
-          <div className="mb-6">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Current Detection Window</span>
-              <span>{Math.floor(monitoringStatus.current_window_time / 60)} / 5 minutes</span>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl border-2 border-blue-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-600 p-2 rounded-lg">
+                  <Zap size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Detection Window Progress</h3>
+                  <p className="text-sm text-gray-600">
+                    {Math.floor(monitoringStatus.current_window_time / 60)} / 5 minutes
+                  </p>
+                </div>
+              </div>
+              <span className="badge badge-primary text-lg px-4 py-2">
+                {Math.round(getProgressPercentage())}%
+              </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden">
               <div
-                className="bg-primary-600 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min((monitoringStatus.current_window_time / 300) * 100, 100)}%` }}
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full transition-all duration-300 animate-pulse"
+                style={{ width: `${getProgressPercentage()}%` }}
               ></div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Eyes must be detected for 5 consecutive minutes to count as active time
+            <p className="text-xs text-gray-600 mt-3 flex items-center space-x-2">
+              <AlertCircle size={14} />
+              <span>Eyes must be detected for 5 consecutive minutes to count as active time</span>
             </p>
           </div>
         )}
       </div>
 
       {/* Camera Feed */}
-      <div className="card">
-        <h3 className="text-xl font-semibold mb-4">Live Feed</h3>
-        <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+      <div className="card animate-scale-in">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-2xl font-bold text-gray-900">Live Camera Feed</h3>
+          {isMonitoring && (
+            <div className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-full animate-pulse">
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+              <span className="text-sm font-bold">RECORDING</span>
+            </div>
+          )}
+        </div>
+        <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl overflow-hidden aspect-video shadow-2xl border-4 border-gray-700">
           {annotatedFrame ? (
             <img
               src={annotatedFrame}
@@ -243,17 +287,18 @@ export default function CameraMonitor() {
             />
           )}
           {!isMonitoring && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-              <div className="text-center text-white">
-                <CameraOff size={48} className="mx-auto mb-2" />
-                <p>Start monitoring to activate camera</p>
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm">
+              <div className="text-center text-white p-8">
+                <CameraOff size={64} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-xl font-bold mb-2">Camera Inactive</p>
+                <p className="text-gray-400">Start monitoring to activate camera</p>
               </div>
             </div>
           )}
         </div>
-        <div className="mt-4 text-sm text-gray-600">
-          <p>
-            <strong>Note:</strong> The camera will automatically detect your face and eyes. 
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl border-l-4 border-blue-500">
+          <p className="text-sm text-gray-700 font-medium">
+            <strong className="text-blue-700">💡 Note:</strong> The camera automatically detects your face and eyes. 
             Your work time is tracked based on continuous eye detection for 5-minute intervals.
           </p>
         </div>
